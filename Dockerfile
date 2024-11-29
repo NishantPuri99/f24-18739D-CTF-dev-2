@@ -1,19 +1,26 @@
-COPY flag.txt /app/
-WORKDIR /app/ret2where
-COPY ret2where/ .
-RUN ret2win
+FROM ubuntu
 
+# You need build-essential to get "make" and "gcc", and "socat" to run
+RUN apt-get update && apt-get install -y python3 build-essential gcc-multilib socat
+
+
+# This is a default flag, and will be filled in with cmgr
+ARG FLAG
+
+# Challenge metadata and artifacts go here. Only root has access
 RUN mkdir /challenge && chmod 700 /challenge
 
-# You can include additional files at the end
-# This is what users download to help solve the problem
-RUN tar zcvf /challenge/artifacts.tar.gz main.go
+# Working directory for copy and commands. 
+COPY dotgit.tar.gz /app/
+WORKDIR /app
 
-# This needs to be your flag. I pulled this from your code. double check.
-RUN echo "{\"flag\":\"$(cat flag.txt)\"}" > /challenge/metadata.json
+# Copy in files to docker image
+COPY ret2win.c Makefile setup-challenge.py ./
+RUN python3 setup-challenge.py
+# Build CTF challenge and make flag.txt file 
+RUN make && tar czvf /challenge/artifacts.tar.gz dotgit.tar.gz
 
-EXPOSE 8000
+EXPOSE 5555
+# PUBLISH 5555 AS socat
 
-# PUBLISH 8000 AS port
-
-CMD ["./main"]
+CMD ["socat", "tcp-listen:5555,reuseaddr,fork", "EXEC:'/app/ret2win'"]
